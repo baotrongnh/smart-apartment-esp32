@@ -79,7 +79,7 @@ void setup() {
   // --- GPIO: Inputs ---
   pinMode(FLAME_SENSOR,           INPUT);
   pinMode(FLOW_PIN,               INPUT_PULLUP);
-  pinMode(BUTTON_STOP_ALARM_PIN,  INPUT);
+  pinMode(BUTTON_STOP_ALARM_PIN,  INPUT_PULLUP);
   pinMode(BUTTON_SCREEN_PIN,      INPUT_PULLUP);
   pinMode(LIMIT_SWITCH_OPEN_PIN,  INPUT_PULLUP);
   pinMode(LIMIT_SWITCH_CLOSE_PIN, INPUT_PULLUP);

@@ -3,9 +3,9 @@
 > Updated: 2026-03-29 — Dong bo voi code hien tai
 
 ## 1) Pin Mapping
-
+|--------------------------|--------------------|-----------|-----------------------------------|
 | Feature                  | Signal             | ESP32 Pin | Mode                              |
-| ------------------------ | ------------------ | --------: | --------------------------------- |
+|--------------------------|--------------------|-----------|-----------------------------------|
 | Light 1                  | LED output         |    GPIO18 | OUTPUT                            |
 | Light 2                  | LED output         |    GPIO19 | OUTPUT                            |
 | Flame sensor             | Flame input        |    GPIO27 | INPUT                             |
@@ -22,6 +22,7 @@
 | Curtain limit CLOSE      | Limit switch input |     GPIO4 | INPUT_PULLUP                      |
 | PZEM004T RX              | UART RX            |    GPIO16 | UART2 RX                          |
 | PZEM004T TX              | UART TX            |    GPIO17 | UART2 TX                          |
+|--------------------------|--------------------|-----------|-----------------------------------|
 
 ## 2) I2C Devices
 

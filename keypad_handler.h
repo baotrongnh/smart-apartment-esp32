@@ -90,6 +90,12 @@ void handleKeypad() {
 
   inputPwd[PASSWORD_LEN] = '\0';
 
+  // Yeu cau lay mat khau moi nhat truoc khi so sanh
+  if (client.connected()) {
+    client.publish(TOPIC_STATUS, "GET_DOOR_PASSWORD");
+    Serial.println("[KEYPAD] Requested latest password before check");
+  }
+
   // So sanh password
   if (strcmp(inputPwd, doorPassword) == 0) {
     lcdLine(0, "ACCESS GRANTED");
