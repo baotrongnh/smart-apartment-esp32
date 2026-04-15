@@ -27,24 +27,30 @@ void handleUnlockDoor() {
 }
 
 // ===== Doc feedback khoa cua (log Serial) =====
-// TODO: Mo rong logic xu ly feedback theo yeu cau
+// The debounce will protect against WDT reset and high CPU load if pins 34/35 are floating
 void handleDoorFeedback() {
   static bool lastOpenFb  = HIGH;
   static bool lastCloseFb = HIGH;
+  static unsigned long lastFbChangeMs = 0;
 
   bool openFb  = digitalRead(DOOR_FB_OPEN_PIN);
   bool closeFb = digitalRead(DOOR_FB_CLOSE_PIN);
 
-  if (openFb != lastOpenFb) {
-    Serial.print("[DOOR] Feedback OPEN: ");
-    Serial.println(openFb == LOW ? "ACTIVE" : "INACTIVE");
-    lastOpenFb = openFb;
-  }
+  // Debounce 50ms to prevent floating pins from spamming the Serial TX buffer
+  if ((openFb != lastOpenFb || closeFb != lastCloseFb) && (millis() - lastFbChangeMs > 50)) {
+    lastFbChangeMs = millis();
 
-  if (closeFb != lastCloseFb) {
-    Serial.print("[DOOR] Feedback CLOSE: ");
-    Serial.println(closeFb == LOW ? "ACTIVE" : "INACTIVE");
-    lastCloseFb = closeFb;
+    if (openFb != lastOpenFb) {
+      Serial.print("[DOOR] Feedback OPEN: ");
+      Serial.println(openFb == LOW ? "ACTIVE" : "INACTIVE");
+      lastOpenFb = openFb;
+    }
+
+    if (closeFb != lastCloseFb) {
+      Serial.print("[DOOR] Feedback CLOSE: ");
+      Serial.println(closeFb == LOW ? "ACTIVE" : "INACTIVE");
+      lastCloseFb = closeFb;
+    }
   }
 }
 

@@ -1,3 +1,4 @@
+#include "HardwareSerial.h"
 #ifndef SENSORS_H
 #define SENSORS_H
 
@@ -48,6 +49,11 @@ void handleFlowSensor() {
   // Calculate flow rate and accumulate total
   flowRate = count / PULSE_FREQUENCY;
   totalLiters += flowRate / PULSE_FREQUENCY;
+
+  // Save immediately when there is new water flow so value survives power loss.
+  if (count > 0) {
+    prefsMeter.putFloat("water_total", totalLiters);
+  }
 }
 
 // ======= PZEM: read current & energy periodically ==========
@@ -59,7 +65,7 @@ void handlePzemPoll() {
 
   current = pzem.current();
   energy  = pzem.energy();
-
+  
   if (isnan(current) || isnan(energy)) {
     Serial.println("[PZEM] Read error (NaN)");
   }

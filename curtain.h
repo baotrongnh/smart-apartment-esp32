@@ -17,21 +17,23 @@ void handleCurtain() {
   bool openLimitActive  = (digitalRead(LIMIT_SWITCH_OPEN_PIN) == LOW);
   bool closeLimitActive = (digitalRead(LIMIT_SWITCH_CLOSE_PIN) == LOW);
 
-  // Dung khi cham limit switch MO
+  // Dừng khi chạm limit Open
   if (openLimitActive && !curtainAtOpen) {
     curtainAtOpen  = true;
     curtainAtClose = false;
     curtainCmdOpen = false;
     curtainServo.write(SERVO_STOP_PWM);
+    client.publish(TOPIC_STATUS, "CURTAIN_01_ON");
     return;
   }
 
-  // Dung khi cham limit switch DONG
+  // Dừng khi chạm limit Close
   if (closeLimitActive && !curtainAtClose) {
     curtainAtClose  = true;
     curtainAtOpen   = false;
     curtainCmdClose = false;
     curtainServo.write(SERVO_STOP_PWM);
+    client.publish(TOPIC_STATUS, "CURTAIN_01_OFF");
     return;
   }
 

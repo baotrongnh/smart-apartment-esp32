@@ -32,10 +32,20 @@ void handleConfigWifi() {
   wifiSSID = doc["ssid"].as<String>();
   wifiPASS = doc["password"].as<String>();
 
+  if (wifiSSID.length() == 0) {
+    server.send(400, "application/json", "{\"error\":\"ssid is required\"}");
+    return;
+  }
+
   Serial.printf("[API] WiFi config received: %s\n", wifiSSID.c_str());
 
+  prefsWifi.putString("ssid", wifiSSID);
+  prefsWifi.putString("pass", wifiPASS);
+  wifiCredentialsSaved = true;
+
   WiFi.disconnect(true, true);
-  WiFi.mode(WIFI_AP_STA);
+  provisioningApActive = false;
+  startProvisioningAP();
   WiFi.begin(wifiSSID.c_str(), wifiPASS.c_str());
 
   connectionStatus = "connecting";

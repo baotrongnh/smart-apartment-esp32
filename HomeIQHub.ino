@@ -26,6 +26,7 @@
 #include <PZEM004Tv30.h>
 #include <WebServer.h>
 #include <ArduinoJson.h>
+#include <Preferences.h>
 
 // ===== Configuration =====
 #include "config.h"
@@ -35,9 +36,11 @@ PZEM004Tv30 pzem(Serial2, PZEM_RX_PIN, PZEM_TX_PIN);
 Servo curtainServo;
 WiFiClient espClient;
 PubSubClient client(espClient);
+Preferences prefsWifi;
+Preferences prefsMeter;
 
-LiquidCrystal_I2C lcd(0x26, 16, 2);         // LCD chinh (keypad/password)
-LiquidCrystal_I2C lcdUtility(0x27, 16, 2);  // LCD tien ich (nuoc/dien)
+LiquidCrystal_I2C lcd(0x27, 16, 2);         // LCD chinh (keypad/password)
+LiquidCrystal_I2C lcdUtility(0x26, 16, 2);  // LCD tien ich (nuoc/dien)
 
 // ===== Keypad Setup =====
 const byte ROWS = 4;
@@ -83,8 +86,8 @@ void setup() {
   pinMode(BUTTON_SCREEN_PIN,      INPUT_PULLUP);
   pinMode(LIMIT_SWITCH_OPEN_PIN,  INPUT_PULLUP);
   pinMode(LIMIT_SWITCH_CLOSE_PIN, INPUT_PULLUP);
-  pinMode(DOOR_FB_OPEN_PIN,       INPUT);
-  pinMode(DOOR_FB_CLOSE_PIN,      INPUT);
+  // pinMode(DOOR_FB_OPEN_PIN,       INPUT); // Tam thoi bo
+  // pinMode(DOOR_FB_CLOSE_PIN,      INPUT); // Tam thoi bo
 
   // --- Interrupt: Flow sensor ---
   attachInterrupt(digitalPinToInterrupt(FLOW_PIN), pulseCounter, FALLING);
@@ -110,11 +113,39 @@ void setup() {
   // --- Keypad password ---
   initKeypadPassword();
 
-  // --- WiFi: Access Point ---
-  WiFi.mode(WIFI_AP_STA);
-  WiFi.softAP(AP_SSID, AP_PASS);
-  Serial.print("[WIFI] AP started, IP: ");
-  Serial.println(WiFi.softAPIP());
+  // --- Persistent storage ---
+  prefsWifi.begin("wifi", false);
+  prefsMeter.begin("meter", false);
+
+  totalLiters = prefsMeter.getFloat("water_total", 0.0f);
+  Serial.printf("[METER] Loaded water_total: %.2f L\n", totalLiters);
+
+  // --- WiFi: saved -> config.h -> AP fallback ---
+  String savedSsid = prefsWifi.getString("ssid", "");
+  String savedPass = prefsWifi.getString("pass", "");
+
+  if (savedSsid.length() > 0) {
+    wifiSSID = savedSsid;
+    wifiPASS = savedPass;
+    wifiCredentialsSaved = true;
+    connectionStatus = "connecting";
+    connectStartTime = millis();
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(wifiSSID.c_str(), wifiPASS.c_str());
+    Serial.printf("[WIFI] Boot connect from NVS: %s\n", wifiSSID.c_str());
+  } else if (String(WIFI_SSID).length() > 0) {
+    wifiSSID = WIFI_SSID;
+    wifiPASS = WIFI_PASS;
+    wifiCredentialsSaved = false;
+    connectionStatus = "connecting";
+    connectStartTime = millis();
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(wifiSSID.c_str(), wifiPASS.c_str());
+    Serial.printf("[WIFI] Boot connect from config.h: %s\n", wifiSSID.c_str());
+  } else {
+    connectionStatus = "failed";
+    startProvisioningAP();
+  }
 
   // --- Web API ---
   setupWebRoutes();
@@ -159,9 +190,12 @@ void loop() {
   // --- Actuators ---
   handleCurtain();
   handleUnlockDoor();
-  handleDoorFeedback();
+  // handleDoorFeedback();  // Tam thoi ngung su dung chan 34/35
 
   // --- Keypad ---
   handleKeypad();
   handleKeypadPostFeedback();
+
+  // Nhuong CPU cho FreeRTOS de tranh bi nong chip ESP32
+  delay(2);
 }

@@ -30,7 +30,7 @@ void utilityLcdLine(byte row, const char* text) {
   lcdUtility.print(buf);
 }
 
-// ===== Button chuyen man hinh nuoc <-> dien =====
+// ===== Button switch màn hình điện - nước =====
 void handleUtilityScreenButton() {
   bool currentBtnState = digitalRead(BUTTON_SCREEN_PIN);
   unsigned long now = millis();
@@ -46,7 +46,7 @@ void handleUtilityScreenButton() {
   lastToggleBtnState = currentBtnState;
 }
 
-// ===== Cap nhat LCD tien ich (nuoc hoac dien) =====
+// ===== Cập nhật LCD (nước & điện) =====
 void updateUtilityLcd() {
   unsigned long now = millis();
   if (now - lastUtilityLcdMs < UTILITY_LCD_INTERVAL_MS) return;
