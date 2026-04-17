@@ -117,6 +117,9 @@ void setup() {
   prefsWifi.begin("wifi", false);
   prefsMeter.begin("meter", false);
 
+  // Mat khau cua: doc NVS, neu chua co thi giu default va luu lai
+  loadDoorPasswordFromStorage();
+
   totalLiters = prefsMeter.getFloat("water_total", 0.0f);
   Serial.printf("[METER] Loaded water_total: %.2f L\n", totalLiters);
 
@@ -173,6 +176,7 @@ void loop() {
   handleWiFiConnection();
   serviceMQTT();
   client.loop();
+  handleTelemetryPublish();
 
   // --- Fire alarm ---
   handleFlameSensor();

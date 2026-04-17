@@ -10,6 +10,38 @@
 // ===== Password (co the doi qua MQTT) =====
 char doorPassword[PASSWORD_LEN + 1];
 
+// ===== Dong bo password voi NVS =====
+bool setDoorPassword(const char* newPassword, bool persistToNvs = true) {
+  if (newPassword == nullptr) return false;
+  if (strlen(newPassword) != PASSWORD_LEN) return false;
+
+  // Khong can cap nhat neu password khong doi
+  if (strncmp(doorPassword, newPassword, PASSWORD_LEN) == 0) return false;
+
+  strncpy(doorPassword, newPassword, PASSWORD_LEN);
+  doorPassword[PASSWORD_LEN] = '\0';
+
+  if (persistToNvs) {
+    prefsMeter.putString("door_pwd", doorPassword);
+  }
+
+  return true;
+}
+
+void loadDoorPasswordFromStorage() {
+  String savedPassword = prefsMeter.getString("door_pwd", "");
+  if (savedPassword.length() == PASSWORD_LEN) {
+    strncpy(doorPassword, savedPassword.c_str(), PASSWORD_LEN);
+    doorPassword[PASSWORD_LEN] = '\0';
+    Serial.println("[DOOR] Loaded password from NVS");
+    return;
+  }
+
+  // Chua co trong NVS -> giu default va luu lai
+  prefsMeter.putString("door_pwd", doorPassword);
+  Serial.println("[DOOR] No valid password in NVS, using default");
+}
+
 // ===== Keypad State =====
 char inputPwd[PASSWORD_LEN + 1] = {0};
 byte pwdIndex   = 0;
@@ -89,12 +121,6 @@ void handleKeypad() {
   if (pwdIndex < PASSWORD_LEN) return;
 
   inputPwd[PASSWORD_LEN] = '\0';
-
-  // Yeu cau lay mat khau moi nhat truoc khi so sanh
-  if (client.connected()) {
-    client.publish(TOPIC_STATUS, "GET_DOOR_PASSWORD");
-    Serial.println("[KEYPAD] Requested latest password before check");
-  }
 
   // So sanh password
   if (strcmp(inputPwd, doorPassword) == 0) {

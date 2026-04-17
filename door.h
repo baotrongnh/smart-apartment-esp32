@@ -10,11 +10,26 @@
 bool doorUnlockActive = false;
 unsigned long doorUnlockStartMs = 0;
 
+void handleFeedbackDoorRelay(const char* id) {
+  int relayPin = LOCK_RELAY_PIN;
+  int relayState = digitalRead(relayPin);
+
+  char payload[50];
+  Serial.println(relayPin);
+
+  if (relayState == HIGH) {
+    sprintf(payload, "DOOR_%s_ON", id);
+  }
+
+  client.publish(TOPIC_STATUS, payload);
+}
+
 // ===== Mo khoa cua (kich hoat relay) =====
 void triggerUnlockDoor() {
   digitalWrite(LOCK_RELAY_PIN, HIGH);
   doorUnlockActive = true;
   doorUnlockStartMs = millis();
+  handleFeedbackDoorRelay("01");
 }
 
 // ===== Tu dong khoa lai sau thoi gian mo =====

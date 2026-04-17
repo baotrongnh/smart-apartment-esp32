@@ -1,3 +1,4 @@
+#include "HardwareSerial.h"
 #include "Client.h"
 #ifndef CONNECTIVITY_H
 #define CONNECTIVITY_H
@@ -12,9 +13,8 @@ unsigned long lastMqttRetryMs = 0;
 unsigned long connectedAt = 0;
 bool apScheduledToClose = false;
 bool provisioningApActive = false;
-bool mqttFirstConnect = true;   // flag: chua connect MQTT lan nao
-bool passwordReceived = false;  // flag: da nhan password tu server
 bool wifiCredentialsSaved = false;
+unsigned long lastTelemetryPublishMs = 0;
 
 // ===== WiFi Config State (shared with web_api.h) =====
 String wifiSSID = "";
@@ -64,15 +64,6 @@ void serviceMQTT() {
     client.subscribe(TOPIC_GET_DOOR_PASSWORD);
     client.subscribe(TOPIC_CURTAIN);
     client.subscribe(TOPIC_GET_TELEMETRY);
-
-    // Moi lan ket noi MQTT -> lay mat khau moi nhat
-    client.publish(TOPIC_STATUS, "GET_DOOR_PASSWORD");
-    Serial.println("[MQTT] Published GET_DOOR_PASSWORD");
-
-    if (mqttFirstConnect) {
-      lcdShowStatus("Password", "Requesting...");
-      mqttFirstConnect = false;
-    }
   } else {
     Serial.println("FAILED");
     lcdShowStatus("MQTT", "Failed!");
@@ -92,6 +83,26 @@ void handleFeedbackLightRelay(const char* id) {
   }
 
   client.publish(TOPIC_STATUS, payload);
+}
+
+void publishTelemetryNow() {
+  StaticJsonDocument<128> doc;
+  doc["water_total"] = totalLiters;
+  doc["energy_total"] = isnan(energy) ? 0.0f : energy;
+
+  char telemetryPayload[128];
+  serializeJson(doc, telemetryPayload, sizeof(telemetryPayload));
+  client.publish(TOPIC_SEND_TELEMETRY, telemetryPayload);
+}
+
+void handleTelemetryPublish() {
+  if (!client.connected()) return;
+
+  unsigned long now = millis();
+  if (now - lastTelemetryPublishMs < TELEMETRY_PUBLISH_INTERVAL_MS) return;
+  lastTelemetryPublishMs = now;
+
+  publishTelemetryNow();
 }
 
 // ===== MQTT Callback: xử lý khi có message đến =====
@@ -123,19 +134,15 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   }
 
   if (strcmp(topic, TOPIC_GET_TELEMETRY) == 0) {
-    StaticJsonDocument<128> doc;
-    doc["water_total"] = totalLiters;
-    doc["energy_total"] = isnan(energy) ? 0.0f : energy;
-
-    char telemetryPayload[128];
-    serializeJson(doc, telemetryPayload, sizeof(telemetryPayload));
-    client.publish(TOPIC_SEND_TELEMETRY, telemetryPayload);
+    publishTelemetryNow();
     return;
   }
 
   // --- Control door ---
   if (strcmp(topic, TOPIC_DOOR) == 0) {
-    if (message == "ON_1") triggerUnlockDoor();
+    if (message == "ON_1") {
+      triggerUnlockDoor();
+    }
     return;
   }
 
@@ -173,17 +180,14 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   // --- Change door password ---
   if (strcmp(topic, TOPIC_GET_DOOR_PASSWORD) == 0) {
     if (message.length() == PASSWORD_LEN) {
-      // Dat mat khau moi
-      strncpy(doorPassword, message.c_str(), PASSWORD_LEN);
-      doorPassword[PASSWORD_LEN] = '\0';
-      Serial.printf("[DOOR] Password updated: %s\n", doorPassword);
-      client.publish(TOPIC_STATUS, "PWD_UPDATED");
-
-      // Hien thi trang thai nhan password len LCD
-      if (!passwordReceived) {
-        passwordReceived = true;
-        lcdShowStatus("Password", "Received OK!");
-        Serial.println("[LCD] Password received, showing status");
+      // Chi cap nhat khi server gui password moi khac password hien tai
+      if (setDoorPassword(message.c_str(), true)) {
+        Serial.printf("[DOOR] Password updated: %s\n", doorPassword);
+        client.publish(TOPIC_STATUS, "PWD_UPDATED");
+        lcdShowStatus("Password", "Updated!");
+        Serial.println("[LCD] Password changed from server, saved to NVS");
+      } else {
+        Serial.println("[DOOR] Password unchanged, ignore");
       }
     } else {
       Serial.printf("[DOOR] Invalid password length: %d\n", message.length());
