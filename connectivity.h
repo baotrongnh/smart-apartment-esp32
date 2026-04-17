@@ -15,6 +15,7 @@ bool apScheduledToClose = false;
 bool provisioningApActive = false;
 bool wifiCredentialsSaved = false;
 unsigned long lastTelemetryPublishMs = 0;
+bool startupStatusPublished = false;
 
 // ===== WiFi Config State (shared with web_api.h) =====
 String wifiSSID = "";
@@ -41,6 +42,9 @@ void lcdShowStatus(const char* line0, const char* line1) {
   lcd.print(line1);
 }
 
+void handleFeedbackLightRelay(const char* id);
+void publishStartupStatusOnce();
+
 // ===== Kết nối & giữ MQTT =====
 void serviceMQTT() {
   if (WiFi.status() != WL_CONNECTED) return;
@@ -64,6 +68,7 @@ void serviceMQTT() {
     client.subscribe(TOPIC_GET_DOOR_PASSWORD);
     client.subscribe(TOPIC_CURTAIN);
     client.subscribe(TOPIC_GET_TELEMETRY);
+    publishStartupStatusOnce();
   } else {
     Serial.println("FAILED");
     lcdShowStatus("MQTT", "Failed!");
@@ -83,6 +88,24 @@ void handleFeedbackLightRelay(const char* id) {
   }
 
   client.publish(TOPIC_STATUS, payload);
+}
+
+void publishStartupStatusOnce() {
+  if (startupStatusPublished) return;
+
+  handleFeedbackLightRelay("01");
+  handleFeedbackLightRelay("02");
+
+  bool openLimitActive = (digitalRead(LIMIT_SWITCH_OPEN_PIN) == LOW);
+  bool closeLimitActive = (digitalRead(LIMIT_SWITCH_CLOSE_PIN) == LOW);
+
+  if (openLimitActive) {
+    client.publish(TOPIC_STATUS, "CURTAIN_01_ON");
+  } else if (closeLimitActive) {
+    client.publish(TOPIC_STATUS, "CURTAIN_01_OFF");
+  }
+
+  startupStatusPublished = true;
 }
 
 void publishTelemetryNow() {
